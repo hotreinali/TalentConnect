@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { GiHamburgerMenu } from "react-icons/gi"
 import { FaRegUserCircle } from "react-icons/fa"
+import logo from '../assets/logo.png';
 
 const Navbar = () => {
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
@@ -27,9 +28,13 @@ const Navbar = () => {
 
   const toggleNavMenu = () => setIsNavMenuOpen(prev => !prev)
 
+  const logoStyle = {
+    height: '50px'
+  };
+
   return (
-    <nav className="px-6 py-4 bg-blue-300">
-      <div className="flex items-center justify-between text-white">
+    <nav className="px-6 py-4 bg-300">
+      <div className="flex items-center justify-between text-black">
         <div className="flex items-center gap-4">
           {/* humbuger icon (small screens only)*/}
           <button
@@ -41,7 +46,8 @@ const Navbar = () => {
 
           {/* Logo */}
           <Link to="/">
-            <h1 className="text-3xl font-bold mr-3">TalentConnect</h1>
+            {/* <h1 className="text-3xl font-bold mr-3">TalentConnect</h1> */}
+            <img src={logo} alt="Logo" style={logoStyle}/>
           </Link>
 
           {/* nav links for medium+ screens */}
@@ -50,7 +56,7 @@ const Navbar = () => {
               <Link
                 key={path}
                 to={path}
-                className="hover:bg-blue-200 p-2"
+                className="hover:bg-blue-200 p-1"
               >
                 {label}
               </Link>
@@ -120,6 +126,8 @@ const Navbar = () => {
       )}
     </nav>
   )
+
+  
 }
 
 export default Navbar;
