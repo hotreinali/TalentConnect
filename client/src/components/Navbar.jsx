@@ -6,11 +6,12 @@ import { FaRegUserCircle } from "react-icons/fa"
 const Navbar = () => {
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
   // ************* temp user auth  *****************
-  const [isAuth, setIsAuth] = useState(true)
+  const [isAuth, setIsAuth] = useState(false)
 
   // navbar links
   const navbarLinks = [
     { path: '/job-search', label: 'Search For Jobs' },
+    { path: '/applicants', label: 'View Applicants' },
     { path: '/about-us', label: 'About' },
   ]
 

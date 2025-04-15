@@ -6,6 +6,7 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import JobSearch from './pages/JobSearch'
 import Profile from './pages/Profile'
+import Applicants from './pages/Applicants'
 import Navbar from './components/Navbar'
 
 const App = () => {
@@ -17,6 +18,7 @@ const App = () => {
         <Route path='/login' element={<Login/>}/>
         <Route path='/job-search' element={<JobSearch/>}/>
         <Route path='/profile' element={<Profile/>}/>
+        <Route path='/applicants' element={<Applicants/>}/>
       </Routes>
       <ToastContainer/>
     </div>
