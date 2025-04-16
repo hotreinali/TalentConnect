@@ -1,29 +1,36 @@
 import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { GiHamburgerMenu } from "react-icons/gi"
 import { FaRegUserCircle } from "react-icons/fa"
 
 const Navbar = () => {
+  const navigate = useNavigate();
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
   // ************* temp user auth  *****************
-  const [isAuth, setIsAuth] = useState(false)
+  const [isAuth, setIsAuth] = useState(true);
+  const [role,setRole] = useState('Employer'); //Employer/JobSeeker
 
   // navbar links
   const navbarLinks = [
-    { path: '/job-search', label: 'Search For Jobs' },
-    { path: '/applicants', label: 'View Applicants' },
     { path: '/about-us', label: 'About' },
   ]
 
   // user menu links
-  const userLinks = [
+  const jobSeekerLinks = [
     { path: '/profile', label: 'Profile' },
-    { path: '/settings', label: 'Settings' },
+    { path: '/job-search', label: 'Search For Jobs' },
+  ]
+
+  const employerLinks = [
+    { path: '/profile', label: 'Profile' },
+    { path: '/applicants', label: 'Manage Applicants' },
   ]
 
   // logout handler
   const handleLogout = () => {
     setIsAuth(false);
+    // redirect to login
+    navigate('/login')
   }
 
   const toggleNavMenu = () => setIsNavMenuOpen(prev => !prev)
@@ -68,9 +75,9 @@ const Navbar = () => {
             </button>
 
             {/* dropdown menu */}
-            <div className="absolute right-0 top-9 mt-1 w-48 bg-white shadow-lg rounded-md border invisible group-hover:visible">
+            <div className="z-20 absolute right-0 top-9 mt-1 w-48 bg-white shadow-lg rounded-md border invisible group-hover:visible">
               <div className="p-2 text-black">
-                {userLinks.map(({ path, label }) => (
+                {(role === 'Employer' ? employerLinks:jobSeekerLinks).map(({ path, label }) => (
                   <Link
                     key={path}
                     to={path}
