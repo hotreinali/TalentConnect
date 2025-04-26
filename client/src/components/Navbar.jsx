@@ -1,14 +1,13 @@
-import React, { useState } from 'react'
+import React, { useContext, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { GiHamburgerMenu } from "react-icons/gi"
 import { FaRegUserCircle } from "react-icons/fa"
+import { AuthContext } from '../Contexts/AuthContext'
 
 const Navbar = () => {
+  const { isLoggedIn,setIsLoggedIn,authUser,setAuthUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
-  // ************* temp user auth  *****************
-  const [isAuth, setIsAuth] = useState(true);
-  const [role,setRole] = useState('Employer'); //Employer/JobSeeker
 
   // navbar links
   const navbarLinks = [
@@ -28,7 +27,8 @@ const Navbar = () => {
 
   // logout handler
   const handleLogout = () => {
-    setIsAuth(false);
+    setIsLoggedIn(false);
+    setAuthUser(null);
     // redirect to login
     navigate('/login')
   }
@@ -67,7 +67,7 @@ const Navbar = () => {
         </div>
 
         {/* if logged in, display menu on hover*/}
-        {isAuth ? (
+        { isLoggedIn? (
           <div className="relative group">
             {/* User avatar with dropdown */}
             <button className="text-4xl cursor-pointer">
@@ -77,7 +77,7 @@ const Navbar = () => {
             {/* dropdown menu */}
             <div className="z-20 absolute right-0 top-9 mt-1 w-48 bg-white shadow-lg rounded-md border invisible group-hover:visible">
               <div className="p-2 text-black">
-                {(role === 'Employer' ? employerLinks:jobSeekerLinks).map(({ path, label }) => (
+                {(authUser?.role === 'Employer' ? employerLinks:jobSeekerLinks).map(({ path, label }) => (
                   <Link
                     key={path}
                     to={path}
@@ -116,7 +116,7 @@ const Navbar = () => {
             </Link>
           ))}
           {/* display login button if not logged in */}
-          {!isAuth && (
+          {!isLoggedIn && (
             <Link
               to="/login"
               className="block p-2 hover:bg-blue-200 cursor-pointer w-full text-center"

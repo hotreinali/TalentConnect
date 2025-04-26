@@ -1,12 +1,14 @@
-import React, { useState } from 'react'
+import React, { useContext, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import login_img from '../assets/login_bg.webp'
 import AuthForm from '../components/AuthForm'
+import { AuthContext } from '../Contexts/AuthContext'
 
 const Login = () => {
   const navigate = useNavigate();
-  const [isSignin, setIsSignin] = useState(false);
+  const { setIsLoggedIn, setAuthUser } = useContext(AuthContext)
+  const [formPage, setFormPage] = useState('login');
   const [formData, setFormData] = useState({ role: 'JobSeeker', name: '', email: '', password: '', confirmPassword: '' });
 
   const handleFormChange = (e) => {
@@ -24,7 +26,7 @@ const Login = () => {
     }))
   }
 
-  const formValidation = () => {
+  const registerFormValidation = () => {
     const { password, confirmPassword } = formData;
     if (password !== confirmPassword) {
       toast.error('The passwords you entered does not match!')
@@ -35,13 +37,21 @@ const Login = () => {
 
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
-    if (!formValidation()) return;
+    if (!registerFormValidation()) return;
     // clear form data
     setFormData({ role: '', name: '', email: '', password: '', confirmPassword: '' })
     toast.success("Your account has been created!")
     console.log(formData);
-    // navigate to home page on success
-    navigate('/')
+    setFormPage('login');
+  }
+
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    setFormData({ role: '', email: '', password: '', confirmPassword: '' });
+    toast.success('Welcome back!');
+    setIsLoggedIn(true);
+    setAuthUser({ role: formData.role, email: formData.email })
+    navigate('/');
   }
 
   return (
@@ -53,36 +63,41 @@ const Login = () => {
         </div>
         {/* right */}
         <div className="w-full md:w-1/2 bg-white flex flex-col items-center justify-start gap-5 mt-6">
-
           <div className="flex text-sm gap-5 mt-8 mb-5">
-            <button
-              onClick={() => handleRoleChange('JobSeeker')}
-              className={`px-3 py-2 rounded-full cursor-pointer transition 
+            {formPage === 'register' && (
+              <>
+                <button
+                  onClick={() => handleRoleChange('JobSeeker')}
+                  className={`px-3 py-2 rounded-full cursor-pointer transition 
       ${formData.role === 'JobSeeker' ? 'bg-blue-400 text-white' : 'bg-gray-200 text-black'} 
       hover:bg-blue-400 hover:text-white`}
-            >
-              Job Seeker
-            </button>
-            <button
-              onClick={() => handleRoleChange('Employer')}
-              className={`px-3 py-2 rounded-full cursor-pointer transition 
+                >
+                  Job Seeker
+                </button>
+                <button
+                  onClick={() => handleRoleChange('Employer')}
+                  className={`px-3 py-2 rounded-full cursor-pointer transition 
       ${formData.role === 'Employer' ? 'bg-blue-400 text-white' : 'bg-gray-200 text-black'} 
       hover:bg-blue-400 hover:text-white`}
-            >
-              Employer
-            </button>
+                >
+                  Employer
+                </button>
+              </>
+            )}
           </div>
-          {isSignin ? (
+          {formPage === 'login' ? (
             <h2 className="text-2xl">Sign In</h2>
           ) : (
             <h2 className="text-2xl">Sign Up</h2>
           )}
           <AuthForm
-            isSignin={isSignin}
-            setIsSignin={setIsSignin}
+            formPage={formPage}
+            setFormPage={setFormPage}
             formData={formData}
+            setFormData={setFormData}
             handleFormChange={handleFormChange}
-            handleSubmit={handleRegisterSubmit} />
+            handleRegisterSubmit={handleRegisterSubmit}
+            handleLoginSubmit={handleLoginSubmit} />
         </div>
       </div>
     </section>
