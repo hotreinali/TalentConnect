@@ -7,6 +7,7 @@ import Login from './pages/Login'
 import JobSearch from './pages/JobSearch'
 import Profile from './pages/Profile'
 import Applicants from './pages/Applicants'
+import PostJob from './pages/PostJob'
 import Navbar from './components/Navbar'
 
 const App = () => {
@@ -19,6 +20,7 @@ const App = () => {
         <Route path='/job-search' element={<JobSearch/>}/>
         <Route path='/profile' element={<Profile/>}/>
         <Route path='/applicants' element={<Applicants/>}/>
+        <Route path='/post-job' element={<PostJob/>}/>
       </Routes>
       <ToastContainer/>
     </div>
