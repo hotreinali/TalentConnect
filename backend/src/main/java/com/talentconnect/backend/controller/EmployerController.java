@@ -40,6 +40,7 @@ public class EmployerController {
     }
 
     // 3. Create/post a job
+<<<<<<< Updated upstream
     @PostMapping("/jobs")
     public String createJob(@RequestBody Job job) throws Exception {
         ApiFuture<QuerySnapshot> future = db.collection(JOBS).get();
@@ -55,6 +56,36 @@ public class EmployerController {
     }
 
 
+=======
+
+    @PostMapping("/jobs")
+    public String createJob(@RequestBody Job job) throws Exception {
+        DocumentReference counterRef = db.collection("metadata").document("jobCounter");
+
+        // Firestore transaction to safely increment counter
+        ApiFuture<String> future = db.runTransaction(transaction -> {
+            DocumentSnapshot snapshot = transaction.get(counterRef).get();
+            Long currentCount = snapshot.contains("count") ? snapshot.getLong("count") : 0L;
+            long newCount = currentCount + 1;
+
+            // 生成 jobId
+            String jobId = String.format("job%03d", newCount);
+            job.setJobId(jobId);
+
+            // 写入 job 文档
+            db.collection("jobs").document(jobId).set(job);
+            transaction.update(counterRef, "count", newCount);
+
+            return jobId;
+        });
+
+        return future.get();  // 返回 jobId
+    }
+
+
+
+
+>>>>>>> Stashed changes
     // 4. View all jobs posted by employer
     @GetMapping("/jobs")
     public List<Job> getJobs(@RequestParam String employerId) throws Exception {
@@ -67,6 +98,7 @@ public class EmployerController {
     }
 
     // 5. View job details and applicants
+<<<<<<< Updated upstream
     @GetMapping("/jobs/{id}")
     public Map<String, Object> getJobWithApplicants(@PathVariable String id) throws Exception {
         Map<String, Object> result = new HashMap<>();
@@ -80,6 +112,39 @@ public class EmployerController {
         return result;
     }
 
+=======
+    // ✅ 修改后的代码
+    @GetMapping("/jobs/{id}")
+    public Map<String, Object> getJobWithApplicants(@PathVariable String id) throws Exception {
+        Map<String, Object> result = new HashMap<>();
+
+        // 获取 Job 文档
+        DocumentSnapshot jobDoc = db.collection(JOBS).document(id).get().get();
+        if (!jobDoc.exists()) {
+            throw new RuntimeException("Job not found");
+        }
+        result.put("job", jobDoc.toObject(Job.class));
+
+        // 获取该职位下的所有申请记录
+        List<QueryDocumentSnapshot> applications = db.collection(APPLICATIONS)
+                .whereEqualTo("jobId", id).get().get().getDocuments();
+
+        // ✅ 转成可序列化的纯数据结构
+        List<Map<String, Object>> applicantList = new ArrayList<>();
+        for (DocumentSnapshot doc : applications) {
+            Map<String, Object> data = doc.getData(); // 只拿出字段
+            if (data != null) {
+                data.put("applicationId", doc.getId()); // 加上文档 ID
+                applicantList.add(data);
+            }
+        }
+
+        result.put("applicants", applicantList); // ✅ 安全可序列化
+        return result;
+    }
+
+
+>>>>>>> Stashed changes
     // 6. Update job info
     @PutMapping("/jobs/{id}")
     public String updateJob(@PathVariable String id, @RequestBody Job job) throws Exception {
@@ -126,4 +191,12 @@ public class EmployerController {
         return "Shortlisted candidate removed.";
     }
 
+<<<<<<< Updated upstream
+=======
+    @GetMapping("test")
+    public String test() {
+        return "test";
+    }
+
+>>>>>>> Stashed changes
 }

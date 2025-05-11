@@ -36,6 +36,11 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error").permitAll()
+<<<<<<< Updated upstream
+=======
+                        .requestMatchers("/employee/**").permitAll()
+                        .requestMatchers("/employer/**").permitAll()
+>>>>>>> Stashed changes
                         .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login").permitAll()
                         .anyRequest().authenticated())
                 .addFilter(authFilter)
