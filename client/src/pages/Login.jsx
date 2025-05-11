@@ -1,8 +1,106 @@
-import React from 'react'
+import React, { useContext, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
+// import login_img from '../assets/login_bg.webp'
+import AuthForm from '../components/AuthForm'
+import { AuthContext } from '../Contexts/AuthContext'
 
 const Login = () => {
+  const navigate = useNavigate();
+  const { setIsLoggedIn, setAuthUser } = useContext(AuthContext)
+  const [formPage, setFormPage] = useState('login');
+  const [formData, setFormData] = useState({ role: 'JobSeeker', name: '', email: '', password: '', confirmPassword: '' });
+
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  const handleRoleChange = (role) => {
+    setFormData(prev => ({
+      ...prev,
+      role: role
+    }))
+  }
+
+  const registerFormValidation = () => {
+    const { password, confirmPassword } = formData;
+    if (password !== confirmPassword) {
+      toast.error('The passwords you entered does not match!')
+      return false;
+    }
+    return true;
+  }
+
+  const handleRegisterSubmit = async (e) => {
+    e.preventDefault();
+    if (!registerFormValidation()) return;
+    // clear form data
+    setFormData({ role: '', name: '', email: '', password: '', confirmPassword: '' })
+    toast.success("Your account has been created!")
+    console.log(formData);
+    setFormPage('login');
+  }
+
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    setFormData({ role: '', email: '', password: '', confirmPassword: '' });
+    toast.success('Welcome back!');
+    setIsLoggedIn(true);
+    setAuthUser({ role: formData.role, email: formData.email })
+    navigate('/');
+  }
+
   return (
-    <div>Login</div>
+    <section className="h-screen flex justify-center items-center">
+      <div className="z-10 h-[80%] w-[90%] max-w-5xl flex shadow-lg rounded-lg">
+        {/* left */}
+        {/* <div className="hidden md:flex w-1/2">
+          <img src={login_img} alt="form background image" className="object-cover" />
+        </div> */}
+        {/* right */}
+        <div className="w-full md:w-1/2 bg-white flex flex-col items-center justify-start gap-5 mt-6">
+          <div className="flex text-sm gap-5 mt-8 mb-5">
+            {formPage === 'register' && (
+              <>
+                <button
+                  onClick={() => handleRoleChange('JobSeeker')}
+                  className={`px-3 py-2 rounded-full cursor-pointer transition 
+      ${formData.role === 'JobSeeker' ? 'bg-blue-400 text-white' : 'bg-gray-200 text-black'} 
+      hover:bg-blue-400 hover:text-white`}
+                >
+                  Job Seeker
+                </button>
+                <button
+                  onClick={() => handleRoleChange('Employer')}
+                  className={`px-3 py-2 rounded-full cursor-pointer transition 
+      ${formData.role === 'Employer' ? 'bg-blue-400 text-white' : 'bg-gray-200 text-black'} 
+      hover:bg-blue-400 hover:text-white`}
+                >
+                  Employer
+                </button>
+              </>
+            )}
+          </div>
+          {formPage === 'login' ? (
+            <h2 className="text-2xl">Sign In</h2>
+          ) : (
+            <h2 className="text-2xl">Sign Up</h2>
+          )}
+          <AuthForm
+            formPage={formPage}
+            setFormPage={setFormPage}
+            formData={formData}
+            setFormData={setFormData}
+            handleFormChange={handleFormChange}
+            handleRegisterSubmit={handleRegisterSubmit}
+            handleLoginSubmit={handleLoginSubmit} />
+        </div>
+      </div>
+    </section>
   )
 }
 

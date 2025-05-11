@@ -1,39 +1,47 @@
-import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import React, { useContext, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { GiHamburgerMenu } from "react-icons/gi"
 import { FaRegUserCircle } from "react-icons/fa"
+import { AuthContext } from '../Contexts/AuthContext'
 import logo from '../assets/logo.png';
 
 const Navbar = () => {
+  const { isLoggedIn,setIsLoggedIn,authUser,setAuthUser } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
-  // ************* temp user auth  *****************
-  const [isAuth, setIsAuth] = useState(true)
 
   // navbar links
   const navbarLinks = [
-    { path: '/job-search', label: 'Search For Jobs' },
     { path: '/about-us', label: 'About' },
   ]
 
   // user menu links
-  const userLinks = [
+  const jobSeekerLinks = [
     { path: '/profile', label: 'Profile' },
-    { path: '/settings', label: 'Settings' },
+    { path: '/job-search', label: 'Search For Jobs' },
   ]
+
+  const employerLinks = [
+    { path: '/profile', label: 'Profile' },
+    { path: '/applicants', label: 'Manage Applicants' },
+  ]
+
+  // const logoStyle = {
+  //   height: '50px'
+  // };
 
   // logout handler
   const handleLogout = () => {
-    setIsAuth(false);
+    setIsLoggedIn(false);
+    setAuthUser(null);
+    // redirect to login
+    navigate('/login')
   }
 
   const toggleNavMenu = () => setIsNavMenuOpen(prev => !prev)
 
-  const logoStyle = {
-    height: '50px'
-  };
-
   return (
-    <nav className="px-6 py-4 bg-300">
+    <nav className="px-6 py-4">
       <div className="flex items-center justify-between text-black">
         <div className="flex items-center gap-4">
           {/* humbuger icon (small screens only)*/}
@@ -46,8 +54,7 @@ const Navbar = () => {
 
           {/* Logo */}
           <Link to="/">
-            {/* <h1 className="text-3xl font-bold mr-3">TalentConnect</h1> */}
-            <img src={logo} alt="Logo" style={logoStyle}/>
+            <img src={logo} alt="Logo" className="h-[50px]"/>
           </Link>
 
           {/* nav links for medium+ screens */}
@@ -56,7 +63,7 @@ const Navbar = () => {
               <Link
                 key={path}
                 to={path}
-                className="hover:bg-blue-200 p-1"
+                className="hover:bg-blue-200 p-2"
               >
                 {label}
               </Link>
@@ -65,7 +72,7 @@ const Navbar = () => {
         </div>
 
         {/* if logged in, display menu on hover*/}
-        {isAuth ? (
+        { isLoggedIn? (
           <div className="relative group">
             {/* User avatar with dropdown */}
             <button className="text-4xl cursor-pointer">
@@ -73,9 +80,9 @@ const Navbar = () => {
             </button>
 
             {/* dropdown menu */}
-            <div className="absolute right-0 top-9 mt-1 w-48 bg-white shadow-lg rounded-md border invisible group-hover:visible">
+            <div className="z-20 absolute right-0 top-9 mt-1 w-48 bg-white shadow-lg rounded-md border invisible group-hover:visible">
               <div className="p-2 text-black">
-                {userLinks.map(({ path, label }) => (
+                {(authUser?.role === 'Employer' ? employerLinks:jobSeekerLinks).map(({ path, label }) => (
                   <Link
                     key={path}
                     to={path}
@@ -102,7 +109,7 @@ const Navbar = () => {
 
       {/* dropdown for small screens */}
       {isNavMenuOpen && (
-        <div className="sm:hidden mt-4 flex flex-col text-white text-center">
+        <div className="sm:hidden mt-4 flex flex-col text-black text-center">
           {navbarLinks.map(({ path, label }) => (
             <Link
               key={path}
@@ -114,7 +121,7 @@ const Navbar = () => {
             </Link>
           ))}
           {/* display login button if not logged in */}
-          {!isAuth && (
+          {!isLoggedIn && (
             <Link
               to="/login"
               className="block p-2 hover:bg-blue-200 cursor-pointer w-full text-center"
@@ -126,8 +133,6 @@ const Navbar = () => {
       )}
     </nav>
   )
-
-  
 }
 
 export default Navbar;
