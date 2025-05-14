@@ -51,7 +51,7 @@ const Login = () => {
     toast.success('Welcome back!');
     setIsLoggedIn(true);
     setAuthUser({ role: formData.role, email: formData.email })
-    navigate('/');
+    navigate('/job-search'); // change
   }
 
   return (

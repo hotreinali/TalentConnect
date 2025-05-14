@@ -1,20 +1,15 @@
-import React, { useContext, useState } from 'react'
-import { AuthContext } from '../Contexts/AuthContext'
-import { toast } from 'react-toastify'
-
-// Mock job data (aligned with jobs table schema)
-const mockJobs = [
-  { jobId: "job01", title: "Frontend Developer", employerId: "emp001", location: "Auckland", employmentType: "Full-time", category: "Software", description: "Build beautiful interfaces using React." },
-  { jobId: "job02", title: "Backend Engineer", employerId: "emp002", location: "Wellington", employmentType: "Full-time", category: "Software", description: "Develop APIs with Node.js and Express." },
-  { jobId: "job03", title: "UX Designer", employerId: "emp003", location: "Christchurch", employmentType: "Contract", category: "Design", description: "Create user-friendly interfaces for web apps." },
-  { jobId: "job04", title: "Product Manager", employerId: "emp004", location: "Hamilton", employmentType: "Full-time", category: "Management", description: "Lead product development teams." },
-  { jobId: "job05", title: "Data Analyst", employerId: "emp005", location: "Dunedin", employmentType: "Part-time", category: "Analytics", description: "Analyze business data to drive decisions." },
-];
+import React, { useContext, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../Contexts/AuthContext';
+import { toast } from 'react-toastify';
+import { getAllJobs } from '../Contexts/jobApi'; // 确保路径正确
+import { getPotentialJobs, removePotentialJob, savePotentialJob } from '../Contexts/ApplicationApi';
 
 const ITEMS_PER_PAGE = 9;
 
 const JobSearch = () => {
   const { isLoggedIn = false } = useContext(AuthContext) || {};
+  const [jobs, setJobs] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
     employmentType: "",
@@ -22,19 +17,47 @@ const JobSearch = () => {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedJob, setSelectedJob] = useState(null);
+  const [savedJobs, setSavedJobs] = useState(new Set());
+  const navigate = useNavigate();
 
-  // Filter and search logic
-  const filteredJobs = mockJobs.filter((job) => {
+  // 🚀 拉取后端职位列表
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        const data = await getAllJobs();
+        setJobs(data || []);
+      } catch {
+        toast.error("Failed to load jobs from server.");
+      }
+    };
+    const fetchSavedJobs = async () => {
+      if (isLoggedIn) {
+        try {
+          const data = await getPotentialJobs();
+          setSavedJobs(new Set(data.map(job => job.jobId || job))); // Adjust based on response
+        } catch {
+          toast.error("Failed to load saved jobs.");
+        }
+      }
+    };
+    fetchJobs();
+    fetchSavedJobs();
+  }, [isLoggedIn]);
+
+  // 🔍 搜索 + 过滤
+  const filteredJobs = jobs.filter((job) => {
     const matchesSearch =
       job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.employerId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.location.toLowerCase().includes(searchTerm.toLowerCase());
+
     const matchesEmploymentType = filters.employmentType ? job.employmentType === filters.employmentType : true;
     const matchesCategory = filters.category ? job.category === filters.category : true;
+
     return matchesSearch && matchesEmploymentType && matchesCategory;
   });
 
-  // Pagination logic
+  // 分页
   const totalPages = Math.ceil(filteredJobs.length / ITEMS_PER_PAGE);
   const paginatedJobs = filteredJobs.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
@@ -52,12 +75,45 @@ const JobSearch = () => {
     setCurrentPage(1);
   };
 
-  const handleApply = (jobTitle) => {
+  const handleResetFilters = () => {
+    setSearchTerm("");
+    setFilters({
+      employmentType: "",
+      category: "",
+    });
+    setCurrentPage(1);
+  };
+
+  const handleApply = (jobId) => {
     if (!isLoggedIn) {
       toast.error("Please log in to apply for jobs!", { position: "top-right" });
     } else {
-      toast.success(`Applied to ${jobTitle}!`, { position: "top-right" });
-      // Add API call to apply for job
+      navigate(`/apply/${jobId}`);
+    }
+  };
+
+  const handleSaveToggle = async (jobId) => {
+    if (!isLoggedIn) {
+      toast.error("Please log in to save jobs!");
+      navigate('/login');
+      return;
+    }
+    try {
+      if (savedJobs.has(jobId)) {
+        await removePotentialJob(jobId);
+        setSavedJobs((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(jobId);
+          return newSet;
+        });
+        toast.success("Job removed from potential list.");
+      } else {
+        await savePotentialJob(jobId);
+        setSavedJobs((prev) => new Set(prev).add(jobId));
+        toast.success("Job saved to potential list.");
+      }
+    } catch (error) {
+      toast.error("Failed to update potential list.");
     }
   };
 
@@ -90,6 +146,9 @@ const JobSearch = () => {
             <option value="Full-time">Full-time</option>
             <option value="Part-time">Part-time</option>
             <option value="Contract">Contract</option>
+            <option value="Contract">Permanent</option>
+            <option value="Contract">Graduate</option>
+            <option value="Contract">Internship</option>
           </select>
           <select
             name="category"
@@ -103,6 +162,12 @@ const JobSearch = () => {
             <option value="Management">Management</option>
             <option value="Analytics">Analytics</option>
           </select>
+          <button
+            onClick={handleResetFilters}
+            className="p-3 bg-gray-300 rounded-lg hover:bg-gray-400 transition-colors text-gray-800 md:col-start-2 lg:col-start-3"
+          >
+            Reset Filters
+          </button>
         </div>
       </div>
 
@@ -122,9 +187,19 @@ const JobSearch = () => {
               <p className="text-gray-600">{job.location}</p>
               <p className="text-gray-600">{job.employmentType} • {job.category}</p>
               <button
+                    onClick={() => handleSaveToggle(job.jobId)}
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      savedJobs.has(job.jobId)
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-200 text-gray-800'
+                    } hover:opacity-80`}
+                  >
+                    {savedJobs.has(job.jobId) ? 'Saved' : 'Save'}
+                  </button>
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleApply(job.title);
+                  handleApply(job.jobId);
                 }}
                 className={`mt-4 w-full py-2 rounded-lg text-white ${
                   isLoggedIn ? "bg-blue-500 hover:bg-blue-600" : "bg-gray-400 cursor-not-allowed"
@@ -174,7 +249,7 @@ const JobSearch = () => {
               </button>
               <button
                 onClick={() => {
-                  handleApply(selectedJob.title);
+                  handleApply(selectedJob.jobId);
                   setSelectedJob(null);
                 }}
                 className={`px-4 py-2 rounded-lg text-white ${

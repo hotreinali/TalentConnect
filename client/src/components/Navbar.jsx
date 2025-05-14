@@ -19,6 +19,7 @@ const Navbar = () => {
   const jobSeekerLinks = [
     { path: '/profile', label: 'Profile' },
     { path: '/job-search', label: 'Search For Jobs' },
+    { path: '/application-progress', label: 'My Applications' },
   ]
 
   const employerLinks = [
