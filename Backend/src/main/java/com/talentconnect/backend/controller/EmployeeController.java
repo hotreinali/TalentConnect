@@ -1,15 +1,42 @@
 package com.talentconnect.backend.controller;
 
-import com.talentconnect.backend.dto.*;
-import com.talentconnect.backend.service.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.google.api.core.ApiFuture;
+import com.google.cloud.firestore.Firestore;
+import com.google.cloud.firestore.QueryDocumentSnapshot;
+import com.google.cloud.firestore.QuerySnapshot;
+import com.google.firebase.cloud.FirestoreClient;
+import com.talentconnect.backend.dto.ApplyJobRequest;
+import com.talentconnect.backend.dto.BookmarkListResponse;
+import com.talentconnect.backend.dto.BookmarkRequest;
+import com.talentconnect.backend.dto.BookmarkSummary;
+import com.talentconnect.backend.dto.JobDTO;
+import com.talentconnect.backend.dto.ProfileResponse;
+import com.talentconnect.backend.dto.UpdateProfileRequest;
+import com.talentconnect.backend.model.Application;
+import com.talentconnect.backend.service.ApplicationService;
+import com.talentconnect.backend.service.BookmarkService;
+import com.talentconnect.backend.service.JobService;
+import com.talentconnect.backend.service.ProfileService;
+import com.talentconnect.backend.service.ResumeService;
 
 @CrossOrigin(origins = "http://localhost:5173")
 @RestController
@@ -30,6 +57,8 @@ public class EmployeeController {
 
     @Autowired
     private ApplicationService applicationService;
+
+     private final Firestore db = FirestoreClient.getFirestore();
 
     // profile
     @GetMapping("/profile/{id}")
@@ -98,28 +127,21 @@ public class EmployeeController {
         return ResponseEntity.ok("Application submitted.");
     }
 
-    @GetMapping("/applications")
-    public ResponseEntity<ApplicationListResponse> getApplications(@RequestParam String jobSeekerId) {
-        List<Map<String, Object>> records = applicationService.getApplicationsByJobSeekerId(jobSeekerId);
-        List<ApplicationSummary> result = new ArrayList<>();
-
-        for (Map<String, Object> record : records) {
-            String jobId = (String) record.get("jobId");
-            String applicationId = (String) record.get("applicationId");
-            String status = (String) record.get("status");
-
-            JobDTO job = jobService.getJobDetail(jobId); // 你之前已经写好
-            ApplicationSummary summary = new ApplicationSummary();
-            summary.setApplicationId(applicationId);
-            summary.setJobId(jobId);
-            summary.setStatus(status);
-            summary.setTitle(job.getTitle());
-            summary.setLocation(job.getLocation());
-
-            result.add(summary);
+   @GetMapping("/applications") // change
+    public List<Application> getApplications() throws InterruptedException, ExecutionException {
+        // String jobSeekerId = SecurityContextHolder.getContext().getAuthentication().getName();
+        List<Application> applicationList = new ArrayList<>();
+        // ApiFuture<QuerySnapshot> future = db.collection("applications")
+        //         .whereEqualTo("jobseekerId", jobSeekerId)
+        //         .get();
+        ApiFuture<QuerySnapshot> future = db.collection("applications")
+                .get();
+        for (QueryDocumentSnapshot doc : future.get().getDocuments()) {
+            Application application = doc.toObject(Application.class);
+            application.setApplicationId(doc.getId()); // Set the document ID
+            applicationList.add(application);
         }
-
-        return ResponseEntity.ok(new ApplicationListResponse(result));
+        return applicationList;
     }
 
     // bookmark

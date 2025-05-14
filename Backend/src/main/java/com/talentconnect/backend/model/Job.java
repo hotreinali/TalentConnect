@@ -3,10 +3,14 @@ package com.talentconnect.backend.model;
 public class Job {
     private String jobId;
     private String title;
+    private String companyName;
     private String description;
     private String location;
     private String category;
     private String employmentType;
+    private String currency;
+    private Double salaryFrom;
+    private Double salaryTo;
     private String employerId;
 
     public Job() {}
@@ -23,6 +27,13 @@ public class Job {
     }
     public void setTitle(String title) {
         this.title = title;
+    }
+
+    public String getCompanyName() {
+        return companyName;
+    }
+    public void setCompanyName(String companyName) {
+        this.companyName = companyName;
     }
 
     public String getDescription() {
@@ -51,6 +62,27 @@ public class Job {
     }
     public void setEmploymentType(String employmentType) {
         this.employmentType = employmentType;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
+
+    public Double getSalaryFrom() {
+        return salaryFrom;
+    }
+    public void setSalaryFrom(Double salaryFrom) {
+        this.salaryFrom = salaryFrom;
+    }
+
+    public Double getSalaryTo() {
+        return salaryTo;
+    }
+    public void setSalaryTo(Double salaryTo) {
+        this.salaryTo = salaryTo;
     }
 
     public String getEmployerId() {
