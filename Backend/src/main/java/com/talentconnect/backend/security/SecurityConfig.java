@@ -1,5 +1,7 @@
 package com.talentconnect.backend.security;
 
+import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -17,7 +19,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import jakarta.servlet.http.HttpServletResponse;
-import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -38,16 +39,18 @@ public class SecurityConfig {
         JwtAuthorizationFilter authorizationFilter = new JwtAuthorizationFilter(tokenProvider);
 
         http
-                .cors() // ✅ 开启 CORS
-                .and()
+                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // ✅ 开启 CORS
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/employee/**").permitAll()
                         .requestMatchers("/employer/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login", "/auth/forgot-password")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/auth/reset-password").permitAll()
                         .anyRequest().authenticated())
+
                 .addFilter(authFilter)
                 .addFilterBefore(authorizationFilter, UsernamePasswordAuthenticationFilter.class)
                 .logout(logout -> logout

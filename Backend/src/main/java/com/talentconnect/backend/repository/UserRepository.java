@@ -1,12 +1,14 @@
 package com.talentconnect.backend.repository;
 
-import com.talentconnect.backend.model.User;
-import com.google.cloud.firestore.Firestore;
-import com.google.cloud.firestore.DocumentSnapshot;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+
 import org.springframework.stereotype.Repository;
 
-import java.util.concurrent.ExecutionException;
-import java.util.Map;
+import com.google.cloud.firestore.DocumentSnapshot;
+import com.google.cloud.firestore.Firestore;
+import com.talentconnect.backend.model.RoleType;
+import com.talentconnect.backend.model.User;
 
 @Repository
 public class UserRepository {
@@ -28,10 +30,9 @@ public class UserRepository {
                 .whereEqualTo("email", email)
                 .get()
                 .get();
-        if (q.isEmpty())
-            return null;
-        DocumentSnapshot doc = q.getDocuments().get(0);
-        return doc.toObject(User.class);
+        if (q.isEmpty()) return null;
+
+        return convertToUser(q.getDocuments().get(0));
     }
 
     public User findById(String id) throws ExecutionException, InterruptedException {
@@ -39,14 +40,25 @@ public class UserRepository {
                 .document(id)
                 .get()
                 .get();
-        return doc.exists() ? doc.toObject(User.class) : null;
+        return doc.exists() ? convertToUser(doc) : null;
     }
 
-    // ← 新增此方法
     public void updatePassword(String id, String newPassword) throws ExecutionException, InterruptedException {
         db.collection("users")
                 .document(id)
                 .update(Map.of("password", newPassword))
                 .get();
+    }
+
+    // ✅ 抽出公共逻辑
+    private User convertToUser(DocumentSnapshot doc) {
+        String id = doc.getId();
+        String email = doc.getString("email");
+        String password = doc.getString("password");
+        String roleStr = doc.getString("role");
+
+        RoleType role = RoleType.fromString(roleStr);  // 大小写无关解析
+
+        return new User(id, email, password, role);
     }
 }

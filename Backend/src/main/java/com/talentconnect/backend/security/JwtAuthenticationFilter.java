@@ -1,18 +1,20 @@
 package com.talentconnect.backend.security;
 
-import com.talentconnect.backend.dto.LoginRequest;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.Collections;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import java.io.IOException;
-import java.util.Collections;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.talentconnect.backend.dto.LoginRequest;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 

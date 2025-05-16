@@ -1,13 +1,16 @@
 package com.talentconnect.backend.controller;
 
-import java.util.List;
+import java.util.Collections;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,13 +20,18 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.google.cloud.firestore.Firestore;
+import com.google.firebase.cloud.FirestoreClient;
 import com.talentconnect.backend.dto.AuthRequest;
-import com.talentconnect.backend.dto.AuthResponse;
-import com.talentconnect.backend.dto.ChangePasswordRequest;
 import com.talentconnect.backend.dto.SignupRequest;
+import com.talentconnect.backend.model.Employer;
+import com.talentconnect.backend.model.JobSeeker;
+import com.talentconnect.backend.model.RoleType;
 import com.talentconnect.backend.model.User;
+import com.talentconnect.backend.repository.EmployerRepository;
+import com.talentconnect.backend.repository.JobSeekerRepository;
 import com.talentconnect.backend.repository.UserRepository;
-import com.talentconnect.backend.security.JwtUtil;
+import com.talentconnect.backend.security.JwtTokenProvider;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -35,61 +43,137 @@ public class AuthController {
     @Autowired
     private UserRepository userRepo;
     @Autowired
-    private PasswordEncoder passwordEncoder;
+    private EmployerRepository employerRepo;
     @Autowired
-    private JwtUtil jwtUtil;
+    private JobSeekerRepository jobSeekerRepo;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
+private JwtTokenProvider jwtTokenProvider;
+
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@RequestBody SignupRequest req)
+    public ResponseEntity<Object> register(@RequestBody SignupRequest req)
             throws ExecutionException, InterruptedException {
-        if (userRepo.findByEmail(req.getEmail()) != null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already in use");
+
+        Firestore db = FirestoreClient.getFirestore();
+
+        boolean emailUsedInEmployers = !db.collection("employers")
+                .whereEqualTo("email", req.getEmail()).get().get().isEmpty();
+        boolean emailUsedInJobSeekers = !db.collection("JobSeekers")
+                .whereEqualTo("email", req.getEmail()).get().get().isEmpty();
+
+        if (emailUsedInEmployers) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("message", "This email is already used by an employer."));
         }
-        String id = UUID.randomUUID().toString();
+        if (emailUsedInJobSeekers) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("message", "This email is already used by a job seeker."));
+        }
+
+        if (userRepo.findByEmail(req.getEmail()) != null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("message", "This email is already registered."));
+        }
+
+        // 继续注册逻辑...
         String hashed = passwordEncoder.encode(req.getPassword());
-        User user = new User(id, req.getEmail(), hashed, req.getRole());
+        String userId = UUID.randomUUID().toString();
+
+        User user = new User(userId, req.getEmail(), hashed, req.getRole());
         userRepo.save(user);
-        String token = jwtUtil.generateToken(user.getEmail(), List.of(user.getRole().name()));
-        return ResponseEntity.ok(new AuthResponse(token));
+
+        if (req.getRole() == RoleType.Employer) {
+            int count = db.collection("employers").get().get().size();
+            String generatedEmpId = String.format("emp%03d", count + 1);
+
+            Employer employer = new Employer();
+            employer.setEmployerId(generatedEmpId);
+            employer.setEmail(req.getEmail());
+            db.collection("employers").document(generatedEmpId).set(employer).get();
+        } else {
+            int count = db.collection("JobSeekers").get().get().size();
+            String generatedJsId = String.format("js%03d", count + 1);
+
+            JobSeeker seeker = new JobSeeker();
+            seeker.setJobSeekerId(generatedJsId);
+            seeker.setEmail(req.getEmail());
+            db.collection("JobSeekers").document(generatedJsId).set(seeker).get();
+        }
+
+        return ResponseEntity.ok(Map.of("message", "User registered successfully"));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest req)
+    public ResponseEntity<Map<String, String>> login(@RequestBody AuthRequest req)
             throws ExecutionException, InterruptedException {
+
         User user = userRepo.findByEmail(req.getEmail());
-        if (user == null ||
-                !passwordEncoder.matches(req.getPassword(), user.getPassword())) {
+        if (user == null || !passwordEncoder.matches(req.getPassword(), user.getPassword())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
-        String token = jwtUtil.generateToken(user.getEmail(), List.of(user.getRole().name()));
-        return ResponseEntity.ok(new AuthResponse(token));
+
+        // ✅ 用 JwtTokenProvider 来生成 token
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                user.getEmail(), null, Collections.singletonList(
+                        new SimpleGrantedAuthority("ROLE_" + user.getRole().name())));
+
+        String token = jwtTokenProvider.generateToken(authentication);
+
+        // 查询 employerId/jobSeekerId
+        Firestore db = FirestoreClient.getFirestore();
+        String id = "";
+
+        if (user.getRole() == RoleType.Employer) {
+            var snap = db.collection("employers").whereEqualTo("email", user.getEmail()).get().get();
+            if (!snap.isEmpty()) {
+                id = snap.getDocuments().get(0).toObject(Employer.class).getEmployerId();
+            }
+        } else {
+            var snap = db.collection("JobSeekers").whereEqualTo("email", user.getEmail()).get().get();
+            if (!snap.isEmpty()) {
+                id = snap.getDocuments().get(0).toObject(JobSeeker.class).getJobSeekerId();
+            }
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "token", token,
+                "role", user.getRole().name(),
+                "id", id));
     }
 
-    @PutMapping("/change-password")
-    public ResponseEntity<Void> changePassword(
-            @RequestBody ChangePasswordRequest req,
-            Authentication auth) throws ExecutionException, InterruptedException {
-        String email = auth.getName();
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> sendResetEmail(@RequestBody Map<String, String> body)
+            throws ExecutionException, InterruptedException {
+        String email = body.get("email");
         User user = userRepo.findByEmail(email);
         if (user == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No account found with this email address");
         }
-        if (!passwordEncoder.matches(req.getOldPassword(), user.getPassword())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Old password incorrect");
+        return ResponseEntity.ok("User exists. You may now reset the password.");
+    }
+
+    @PutMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@RequestBody Map<String, String> body)
+            throws ExecutionException, InterruptedException {
+        String email = body.get("email");
+        String newPassword = body.get("newPassword");
+
+        User user = userRepo.findByEmail(email);
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
         }
-        String hashed = passwordEncoder.encode(req.getNewPassword());
+
+        String hashed = passwordEncoder.encode(newPassword);
         userRepo.updatePassword(user.getId(), hashed);
         return ResponseEntity.noContent().build();
     }
 
-
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletRequest request) {
-        String header = request.getHeader("Authorization");
-        if (header != null && header.startsWith("Bearer ")) {
-            String token = header.substring(7);
-            jwtUtil.blacklist(token);
-        }
+
         return ResponseEntity.noContent().build();
     }
 }

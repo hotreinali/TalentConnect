@@ -1,12 +1,20 @@
 package com.talentconnect.backend.repository;
 
-import com.google.cloud.firestore.*;
-import com.google.firebase.cloud.FirestoreClient;
-import com.talentconnect.backend.model.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+
 import org.springframework.stereotype.Repository;
 
-import java.util.*;
-import java.util.concurrent.ExecutionException;
+import com.google.cloud.firestore.DocumentSnapshot;
+import com.google.cloud.firestore.Firestore;
+import com.google.cloud.firestore.QuerySnapshot;
+import com.google.firebase.cloud.FirestoreClient;
+import com.talentconnect.backend.model.Application;
+import com.talentconnect.backend.model.Employer;
+import com.talentconnect.backend.model.Job;
+import com.talentconnect.backend.model.Shortlist;
 
 @Repository
 public class EmployerRepository {
@@ -17,6 +25,11 @@ public class EmployerRepository {
     private static final String JOBS = "jobs";
     private static final String APPLICATIONS = "applications";
     private static final String POTENTIAL_CANDIDATE_LISTS = "potentialCandidateLists";
+
+    public void saveEmployer(String employerId, Employer employer) throws ExecutionException, InterruptedException {
+        employer.setEmployerId(employerId); // 确保 ID 被写入对象本身
+        db.collection(EMPLOYERS).document(employerId).set(employer).get();
+    }
 
     public Employer getEmployer(String id) throws ExecutionException, InterruptedException {
         DocumentSnapshot snapshot = db.collection(EMPLOYERS).document(id).get().get();
@@ -74,7 +87,8 @@ public class EmployerRepository {
 
     public List<Shortlist> getShortlists(String employerId) throws ExecutionException, InterruptedException {
         List<Shortlist> result = new ArrayList<>();
-        QuerySnapshot snapshot = db.collection(POTENTIAL_CANDIDATE_LISTS).whereEqualTo("employerId", employerId).get().get();
+        QuerySnapshot snapshot = db.collection(POTENTIAL_CANDIDATE_LISTS).whereEqualTo("employerId", employerId).get()
+                .get();
         for (DocumentSnapshot doc : snapshot.getDocuments()) {
             result.add(doc.toObject(Shortlist.class));
         }
