@@ -183,8 +183,8 @@ const JobSearch = () => {
               onClick={() => setSelectedJob(job)}
             >
               <h2 className="text-xl font-semibold text-blue-600">{job.title}</h2>
-              <p className="text-gray-600">Employer: {job.employerId}</p>
-              <p className="text-gray-600">{job.location}</p>
+              <p className="text-gray-600">Company Name: {job.companyName}</p>
+              <p className="text-gray-600">Location: {job.location}</p>
               <p className="text-gray-600">{job.employmentType} • {job.category}</p>
               <button
                     onClick={() => handleSaveToggle(job.jobId)}

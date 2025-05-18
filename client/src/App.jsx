@@ -7,6 +7,7 @@ import Profile from './pages/EmployeeProfile'
 import Navbar from './components/Navbar'
 import JobApplication from './pages/JobApplication'
 import ApplicationProgress from './pages/ApplicationProgress'
+import ForgotPassword from './pages/ForgotPassword';
 
 const App = () => {
   return (
@@ -19,6 +20,7 @@ const App = () => {
         <Route path='/profile' element={<Profile/>}/>
         <Route path='/apply/:jobId' element={<JobApplication />} />
         <Route path='/application-progress' element={<ApplicationProgress />} />
+        <Route path='/forgot-password' element={<ForgotPassword/>}/>
       </Routes>
     </div>
   )

@@ -6,20 +6,21 @@ import { AuthContext } from '../Contexts/AuthContext'
 import logo from '../assets/logo.png';
 
 const Navbar = () => {
-  const { isLoggedIn,setIsLoggedIn,authUser,setAuthUser } = useContext(AuthContext);
+  const { isLoggedIn,setIsLoggedIn,authUser,setAuthUser, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
 
   // navbar links
   const navbarLinks = [
-    { path: '/about-us', label: 'About' },
+    // { path: '/about-us', label: 'About' },
+    { path: '/application-progress', label: 'My Applications' },
   ]
 
   // user menu links
   const jobSeekerLinks = [
     { path: '/profile', label: 'Profile' },
-    { path: '/job-search', label: 'Search For Jobs' },
-    { path: '/application-progress', label: 'My Applications' },
+    // { path: '/job-search', label: 'Search For Jobs' },
+    
   ]
 
   const employerLinks = [
@@ -31,13 +32,10 @@ const Navbar = () => {
   //   height: '50px'
   // };
 
-  // logout handler
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setAuthUser(null);
-    // redirect to login
-    navigate('/login')
-  }
+  const handleLogout = async () => {
+    await logout();            // ✅ 退出登录逻辑
+    navigate('/login');        // ✅ 页面跳转
+  };
 
   const toggleNavMenu = () => setIsNavMenuOpen(prev => !prev)
 

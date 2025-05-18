@@ -1,19 +1,26 @@
-import React from 'react'
-import { Link } from 'react-router-dom'
+import React from "react";
+import { Link } from "react-router-dom";
 
-const AuthForm = ({ formData, setFormData, handleFormChange, handleRegisterSubmit, handleLoginSubmit, formPage, setFormPage }) => {
+const AuthForm = ({
+  formData,
+  setFormData,
+  handleFormChange,
+  handleRegisterSubmit,
+  handleLoginSubmit,
+  formPage,
+  setFormPage,
+}) => {
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (formPage === 'login') {
+    if (formPage === "login") {
       handleLoginSubmit(e);
     } else {
       handleRegisterSubmit(e);
     }
-  }
+  };
 
   return (
-    <form onSubmit={handleSubmit}
-      className="flex flex-col gap-6 w-[70%]">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6 w-[70%]">
       <input
         type="email"
         name="email"
@@ -32,7 +39,7 @@ const AuthForm = ({ formData, setFormData, handleFormChange, handleRegisterSubmi
         onChange={handleFormChange}
         className="border border-gray-300 px-4 py-2 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400 text-black"
       />
-      {formPage === 'register' &&
+      {formPage === "register" && (
         <input
           type="password"
           name="confirmPassword"
@@ -41,19 +48,37 @@ const AuthForm = ({ formData, setFormData, handleFormChange, handleRegisterSubmi
           value={formData.confirmPassword}
           onChange={handleFormChange}
           className="border border-gray-300 px-4 py-2 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-gray-400 text-black"
-        />}
-      <Link className="flex justify-end text-sm hover:underline hover:text-blue-400">{formPage === 'register' && 'Forgot Password?'}</Link>
-      <button className="bg-black p-2 text-white rounded-lg cursor-pointer">{formPage === 'login' ? 'Sign In' : 'Sign Up'}</button>
-      {formPage === 'login' ? (
+        />
+      )}
+      {formPage === "login" && (
+        <Link
+          to="/forgot-password"
+          className="flex justify-end text-sm hover:underline hover:text-blue-400"
+        >
+          Forgot Password?
+        </Link>
+      )}
+
+      <button className="bg-black p-2 text-white rounded-lg cursor-pointer">
+        {formPage === "login" ? "Sign In" : "Sign Up"}
+      </button>
+      {formPage === "login" ? (
         <p>
           Don't have an account?
           <button
             type="button"
             onClick={() => {
-              setFormPage('register');
-              setFormData({role: 'JobSeeker', name: '', email: '', password: '', confirmPassword: '' });
+              setFormPage("register");
+              setFormData({
+                role: "JobSeeker",
+                name: "",
+                email: "",
+                password: "",
+                confirmPassword: "",
+              });
             }}
-            className="ml-2 hover:underline hover:text-blue-400">
+            className="ml-2 hover:underline hover:text-blue-400"
+          >
             Sign Up
           </button>
         </p>
@@ -63,17 +88,23 @@ const AuthForm = ({ formData, setFormData, handleFormChange, handleRegisterSubmi
           <button
             type="button"
             onClick={() => {
-              setFormPage('login');
-              setFormData({role: '', name: '', email: '', password: '', confirmPassword: '' });
+              setFormPage("login");
+              setFormData({
+                role: "",
+                name: "",
+                email: "",
+                password: "",
+                confirmPassword: "",
+              });
             }}
-            className="ml-2 hover:underline hover:text-blue-400">
+            className="ml-2 hover:underline hover:text-blue-400"
+          >
             Sign In
           </button>
         </p>
       )}
-
     </form>
-  )
-}
+  );
+};
 
-export default AuthForm
+export default AuthForm;

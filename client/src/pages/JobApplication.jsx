@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AuthContext } from '../Contexts/AuthContext';
 import { toast } from 'react-toastify';
 import { getAllJobs } from '../Contexts/jobApi';
+import { submitApplication, updateProfile } from '../Contexts/ApplicationApi';
+import axios from 'axios';
 
 const JobApplication = () => {
   const { isLoggedIn = false } = useContext(AuthContext) || {};
@@ -10,18 +12,58 @@ const JobApplication = () => {
   const navigate = useNavigate();
   const [job, setJob] = useState(null);
   const [formData, setFormData] = useState({
-    fullName: '',
+    applyDate: '',
+    jobId: '',
+    jobSeekerId: '',
+    status: '',
+  });
+  const [jsData, setJsData] = useState({
+    jobSeekerId: '',
+    firstName: '',
+    lastName: '',
+    phoneNo: '',
     email: '',
-    phone: '',
-    jobTitle: '',
-    linkedinUrl: '',
-    portfolioUrl: '',
-    additionalInfo: '',
+    desiredRole: '',
+    preference: '',
+    resumeId: '',
+    workingExperience: '',
   });
   const [resume, setResume] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const token = localStorage.getItem('authToken');
+  const userId = localStorage.getItem('userId'); // 👈 获取 employerId
+  const userRole = localStorage.getItem('userRole');
+
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
 
   // Fetch job details based on jobId
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await axios.get(`http://localhost:8080/employee/profile/${userId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        setJsData(response.data);
+      } catch (error) {
+        toast.error('Failed to load profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (userRole === 'JobSeeker' && userId) {
+      fetchProfile();
+    } else {
+      toast.error('Invalid user or role');
+      setLoading(false);
+    }
+  }, [token, userId, userRole]);
+
   useEffect(() => {
     const fetchJob = async () => {
       try {
@@ -38,11 +80,40 @@ const JobApplication = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setJsData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleFileChange = (e) => {
-    setResume(e.target.files[0]);
+    const file = e.target.files[0];
+    if (file && file.size > MAX_FILE_SIZE) {
+      toast.error('File size exceeds the maximum limit of 5MB.', { position: 'top-right' });
+      setResume(null); // Clear the file input
+      e.target.value = null; // Reset the input field
+    } else {
+      setResume(file);
+    }
+  };
+
+  const uploadCV = async (file) => {
+    if (!file) return null;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('jobSeekerId', jsData.jobSeekerId);
+
+    try {
+      const response = await axios.post('http://localhost:8080/employee/resume', formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data; // Returns the download URL
+    } catch (error) {
+      console.error('Error uploading CV:', error);
+      toast.error('Failed to upload CV.');
+      throw error;
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -50,14 +121,47 @@ const JobApplication = () => {
     if (!isLoggedIn) {
       toast.error("Please log in to apply for jobs!", { position: "top-right" });
       return;
-    }
-
+    } 
     setIsSubmitting(true);
+
+    
     try {
       // Placeholder for API call to submit application
       // await submitApplication(jobId, formData, resume);
-      toast.success("Application submitted successfully!", { position: "top-right" });
+      // toast.success("Application submitted successfully!", { position: "top-right" });
+      // navigate('/job-search');
+      let resumeUrl = null // Use existing resume URL if available
+      let resumeId = jsData.resumeId; // Use existing resume ID if available
+      if (resume) {
+        const uploadResult = await uploadCV(resume); // Upload new CV
+        resumeUrl = uploadResult.downloadUrl;
+        resumeId = uploadResult.resumeId;
+        // Update jsData with the new resume ID
+        setJsData((prev) => ({ ...prev, resumeId: resumeId }));
+      }
+
+      const applicationData = {
+        applyDate: new Date().toLocaleTimeString(),
+        jobSeekerId: jsData.jobSeekerId,
+        jobId: job.jobId,
+        status: 'Submiited'
+      }
+      const profileData = {
+        jobSeekerId: '',
+        firstName: jsData.firstName,
+        lastName: jsData.lastName,
+        phoneNo: jsData.phoneNo,
+        email: jsData.email,
+        desiredRole: '',
+        preference: '',
+        resumeId: resumeId,
+        workingExperience: '',
+      }
+      const a = await submitApplication(applicationData);
+      const p = await updateProfile(jsData.jobSeekerId, profileData);
+      toast.success('Application submitted successfully!', { position: 'top-right' });
       navigate('/job-search');
+  
     } catch (error) {
       console.error("Error submitting application:", error);
       toast.error("Failed to submit application. Please try again.", { position: "top-right" });
@@ -94,7 +198,7 @@ const JobApplication = () => {
       <div className="flex items-center mb-6">
         {/* <img src="/logo.png" alt="Logo" className="w-8 h-8 mr-2" />  */}
         <h1 className="text-xl font-semibold text-gray-800">
-          {job.title} <span className="text-gray-500">• {job.employerId} • {job.location} • {job.employmentType}</span>
+          {job.title} <span className="text-gray-500">• {job.location} • {job.employmentType}</span>
         </h1>
         <button
           onClick={handleCancel}
@@ -106,27 +210,39 @@ const JobApplication = () => {
       <div className="max-w-lg mx-auto bg-white p-6 rounded-lg shadow-md border border-gray-200">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Submit your application</h2>
         <p className="text-sm text-gray-600 mb-6">
-          The following is required and will only be shared with {job.employerId}
+          The following is required and will only be shared with {job.companyName}
         </p>
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Full name</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
             <input
               type="text"
-              name="fullName"
-              value={formData.fullName}
+              name="firstName"
+              value={jsData.firstName}
               onChange={handleChange}
-              placeholder="Enter your full name"
+              placeholder="Enter your first name"
               className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
               required
             />
           </div>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email address</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+            <input
+              type="text"
+              name="lastName"
+              value={jsData.lastName}
+              onChange={handleChange}
+              placeholder="Enter your last name"
+              className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+              required
+            />
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
             <input
               type="email"
               name="email"
-              value={formData.email}
+              value={jsData.email}
               onChange={handleChange}
               placeholder="Enter your email address"
               className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
@@ -134,11 +250,11 @@ const JobApplication = () => {
             />
           </div>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Phone number</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
             <input
               type="tel"
               name="phone"
-              value={formData.phone}
+              value={jsData.phoneNo}
               onChange={handleChange}
               placeholder="Enter your phone number"
               className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
@@ -150,13 +266,13 @@ const JobApplication = () => {
             <input
               type="text"
               name="jobTitle"
-              value={formData.jobTitle}
+              value={job.title}
               onChange={handleChange}
               placeholder="What's your current or previous job title?"
               className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
             />
           </div>
-          <div className="mb-4">
+          {/* <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">LINKS</label>
             <div className="space-y-2">
               <input
@@ -190,11 +306,12 @@ const JobApplication = () => {
             />
             <p className="text-sm text-gray-500 mt-1">Maximum 500 characters</p>
             <p className="text-sm text-gray-500">{formData.additionalInfo.length}/500</p>
-          </div>
+          </div> */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Attach your resume</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Attach your CV/Resume (Max 5MB)</label>
             <input
               type="file"
+              accept=".pdf,.doc,.docx"
               onChange={handleFileChange}
               className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
             />
