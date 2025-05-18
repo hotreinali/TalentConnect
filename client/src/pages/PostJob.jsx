@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import TextEditor from '../components/TextEditor';
+import { postJob } from '../api/jobApi';
 
 const PostJob = () => {
   const [formData, setFormData] = useState({
@@ -11,7 +12,8 @@ const PostJob = () => {
     currency: 'NZD',
     minSalary: '',
     maxSalary: '',
-    description: ''
+    description: '',
+    category: ''
   });
 
   const handleChange = (e) => {
@@ -29,18 +31,18 @@ const PostJob = () => {
   };
 
   const handleDescriptionChange = (value) => {
-    const plainText = stripHtml(value);
     setFormData((prev) => ({
       ...prev,
-      description: plainText
+      description: value
     }));
   };
 
-  const formValidation = () => {
-    if (!formData.description.trim()) {
-      toast.error('Job description is required.');
-      return false;
-    }
+const formValidation = () => {
+  const plainText = stripHtml(formData.description);
+  if (!plainText.trim()) {
+    toast.error('Job description is required.');
+    return false;
+  }
 
     const min = Number(formData.minSalary);
     const max = Number(formData.maxSalary);
@@ -58,17 +60,49 @@ const PostJob = () => {
     return true;
   };
 
-  const handleSubmit = (e) => {
+  // post job
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const isValid = formValidation();
-    if (!isValid) return;
+    if (!formValidation()) return;
 
-    console.log('Form submitted:', formData);
-    toast.success('Job posted successfully!');
+    const employerId = 'employer001'; 
+
+    const jobData = {
+      title: formData.title,
+      companyName: formData.company,
+      location: formData.location,
+      employmentType: formData.type,
+      currency: formData.currency,
+      salaryFrom: parseFloat(formData.minSalary),
+      salaryTo: parseFloat(formData.maxSalary),
+      description: formData.description,
+      category: formData.category, 
+      employerId: employerId
+    };
+
+    try {
+      const jobId = await postJob(jobData);
+      toast.success(`Job posted successfully! Job ID: ${jobId}`);
+      console.log('Posted job ID:', jobId);
+
+      setFormData({
+        title: '',
+        company: '',
+        location: '',
+        type: '',
+        currency: 'NZD',
+        minSalary: '',
+        maxSalary: '',
+        description: '',
+        category: ''
+      });
+    } catch (error) {
+      toast.error('Failed to post job');
+    }
   };
 
   return (
-    <section className="p-8 h-screen">
+    <section className="p-15 min-h-screen">
       <div className="max-w-[90vw] w-full mx-auto">
         <h2 className="text-2xl font-bold">Post a Job</h2>
         <form onSubmit={handleSubmit} className="mt-4 w-full">
@@ -128,14 +162,12 @@ const PostJob = () => {
                 className="py-1 px-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition duration-200"
                 required
               >
-                <option value="">Select Job Type</option>
+                <option value="">Select Employment Type</option>
                 <option value="Full-time">Full-time</option>
                 <option value="Part-time">Part-time</option>
-                <option value="Permanent">Permanent</option>
-                <option value="Fixed term contract">Fixed term contract</option>
+                <option value="Contract">Contract</option>
                 <option value="Graduate">Graduate</option>
                 <option value="Internship">Internship</option>
-                <option value="Freelance">Freelance</option>
               </select>
             </div>
           </div>
@@ -199,14 +231,18 @@ const PostJob = () => {
               <span className="text-red-400">*</span>
             </label>
             <div>
-              <TextEditor onChange={handleDescriptionChange} />
+            <TextEditor
+  value={formData.description || ''}
+  onChange={handleDescriptionChange}
+/>
+
             </div>
           </div>
 
-          <div className="mt-15 flex justify-center">
+          <div className="mt-12 flex justify-center">
             <button
               type="submit"
-              className="py-2 px-6 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition duration-200"
+              className="mt-5 py-2 px-6 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition duration-200 cursor-pointer"
             >
               Post Job
             </button>

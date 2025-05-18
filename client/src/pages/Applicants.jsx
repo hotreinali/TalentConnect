@@ -1,38 +1,154 @@
-import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import axios from "axios";
 import { Card, CardHeader, CardBody, CardFooter, Button, Typography } from '@material-tailwind/react';
 import { FaSearch, FaRegBookmark, FaBookmark, FaSort } from 'react-icons/fa';
-import ApplicantData from '../dummyData/ApplicantData';
 
-const TABLE_HEAD = ["Starred", "Name", "Job Title", "Resume", "Status"]
+const TABLE_HEAD = ["Starred", "Job Title", "Name", "Email", "Resume","Status"]
+const api = axios.create({
+  baseURL: "http://localhost:8080",
+});
 
 const Applicants = () => {
+  const [jobs, setJobs] = useState([]);
+  const [applicants, setApplicants] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [originalData] = useState(ApplicantData);
-  const [filteredData, setFilteredData] = useState(ApplicantData);
+  const [filteredData, setFilteredData] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [shortlistedIds, setShortlistedIds] = useState(new Set());
   const [isSortedByFavorites, setIsSortedByFavorites] = useState(false);
   const recordPerPage = 10;
   const totalPages = Math.ceil(filteredData.length / recordPerPage);
   // from the last record of the last page + 1 (first record on this page) to the last record on the current page
-  const recordsOnCurrentPage = filteredData.slice((currentPage - 1) * recordPerPage, currentPage * recordPerPage)
+  const recordsOnCurrentPage = filteredData.slice((currentPage - 1) * recordPerPage, currentPage * recordPerPage);
+  const [loading, setLoading] = useState(false);
+  const token = localStorage.getItem('authToken');
+  const userId = localStorage.getItem('userId');
+  const [employerId, setEmployerId] = useState(null);
 
+  // fetch employerId
+  useEffect(() => {
+    const fetchEmployerId = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(`http://localhost:8080/employer/profile/${userId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        console.log(response.data.employerId)
+        setEmployerId(response.data.employerId);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    if (token && userId) {
+      fetchEmployerId();
+    }
+  }, [token, userId]);  
+
+  useEffect(() => {
+    if (!employerId) return;
+    setLoading(true);
+  
+    // get bookmarked list 
+    api.get(`/employer/shortlists?employerId=${employerId}`)
+      .then(res => {
+        const ids = new Set(res.data.map(item => item.jobSeekerId));
+        setShortlistedIds(ids);
+      })
+      .catch(console.error);
+  
+    // get all applicants
+    api.get(`/employer/jobs?employerId=${employerId}`)
+      .then(async res => {
+        setJobs(res.data);
+  
+        const allApplicants = [];
+  
+        for (const job of res.data) {
+          try {
+            const response = await api.get(`/employer/jobs/${job.jobId}`);
+            const applicants = response.data.applicants || [];
+            // get job title
+            const title = response.data.job.title;
+  
+            // get full profile data
+            const detailedApplicants = await Promise.all(
+              applicants.map(async (applicant) => {
+                try {
+                  const profileRes = await api.get(`/employee/profile/${applicant.jobSeekerId}`);
+                  console.log(allApplicants);
+                  return {
+                    ...applicant,
+                    firstName: profileRes.data.firstName,
+                    lastName: profileRes.data.lastName,
+                    email: profileRes.data.email,
+                    title
+                  };
+                } catch {
+                  return {
+                    ...applicant,
+                    firstName: "NA",
+                    lastName: "NA",
+                    email: "NA",
+                    title,
+                  };
+                }
+              })
+            );
+  
+            allApplicants.push(...detailedApplicants);
+  
+          } catch (err) {
+            console.error(`Error fetching applicants for job ${job.jobId}`, err);
+          }
+        }
+  
+        setApplicants(allApplicants);
+        setFilteredData(allApplicants);
+  
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  
+  }, [employerId]);
+
+  
   // search 
   const handleSearch = (e) => {
     e.preventDefault();
-    const filteredSearch = ApplicantData.filter((applicant) => (
-      applicant.name.toLowerCase().includes(searchTerm.toLowerCase())
+    const filteredSearch = applicants.filter((applicant) => (
+      `${applicant.firstName} ${applicant.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
     ))
     setFilteredData(filteredSearch);
+    setCurrentPage(1);
   }
 
   // update status
-  const handleStatusChange = (e, id) => {
-    const updatedRecord = filteredData.map((applicant) => (
-      applicant._id === id ? { ...applicant, status: e.target.value } : applicant
-    ))
-    setFilteredData(updatedRecord)
-  }
+  const handleStatusChange = async (applicationId, newStatus) => {
+    try {
+      await api.put(`/employer/applications/${applicationId}/status`, {
+        status: newStatus,
+      });
+      setApplicants((prev) =>
+        prev.map((applicant) =>
+          applicant.applicationId === applicationId
+            ? { ...applicant, status: newStatus }
+            : applicant
+        )
+      );
+      setFilteredData((prev) =>
+        prev.map((applicant) =>
+          applicant.applicationId === applicationId
+            ? { ...applicant, status: newStatus }
+            : applicant
+        )
+      );
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // pagination
   const toNextPage = () => {
@@ -47,42 +163,63 @@ const Applicants = () => {
     }
   }
 
-  // toggle bookmarks
-  const toggleApplicantBookmark = (id) => {
-    const updatedData = filteredData.map((applicant) =>
-      applicant._id === id ? { ...applicant, isSaved: !applicant.isSaved } : applicant
-    )
-    setFilteredData(updatedData);
-
-    // apply sorting if it's currently sorted by favorites
-    if (isSortedByFavorites) {
-      const sorted = [...updatedData].sort((a, b) =>
-        Number(b.isSaved) - (a.isSaved)
-      )
-      setFilteredData(sorted)
+  // handle bookmark
+  const handleBookmark = async (jobSeekerId) => {
+    const pcId = `${employerId}_${jobSeekerId}`;
+    // remove bookmark from database
+    if (shortlistedIds.has(jobSeekerId)) {
+      try {
+        await api.delete(`/employer/shortlists/${pcId}`);
+        setShortlistedIds((prev) => {
+          const updated = new Set(prev);
+          updated.delete(jobSeekerId);
+          return updated;
+        });
+      } catch (err) {
+        console.error('Failed to remove bookmark!')
+      }
+    } else {
+      // add
+      try {
+        await api.post(`/employer/shortlists`, { employerId, jobSeekerId });
+        setShortlistedIds((prev) => new Set(prev).add(jobSeekerId));
+      } catch (err) {
+        console.error('Failed to bookmark!')
+      }
     }
-  }
+  };
 
   // sort applicants by bookmarks
   const handleSortByFavorites = () => {
     if (isSortedByFavorites) {
       // set back to original order
-      setFilteredData(originalData);
+      setFilteredData(applicants);
     } else {
       // sort data with favorite ones on top
       const sorted = [...filteredData].sort((a, b) =>
-        Number(b.isSaved) - (a.isSaved)
+        Number(shortlistedIds.has(b.jobSeekerId)) -
+        Number(shortlistedIds.has(a.jobSeekerId))
       )
       setFilteredData(sorted)
     }
     // toggle
     setIsSortedByFavorites(!isSortedByFavorites);
   }
+
+  // display loading text while fetching data from api
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
   return (
-    <Card className="min-h-screen py-8 px-4 shadow-none rounded-none">
+    <Card className="min-h-screen flex justify-center item-center shadow-none rounded-none">
       <div className="w-full max-w-4xl mx-auto">
         <CardHeader floated={false} shadow={false} className="p-0 mb-4">
-          <div className="text-center py-4">
+          <div className="text-center py-4  mb-10">
             <h2 className="text-2xl font-semibold">View Applicants</h2>
           </div>
           <form
@@ -136,12 +273,12 @@ const Applicants = () => {
               </thead>
               <tbody>
                 {recordsOnCurrentPage.length > 0 ? recordsOnCurrentPage.map((data) => (
-                  <tr key={data._id} className="even:bg-gray-100">
+                  <tr key={data.applicationId} className="even:bg-gray-100">
                     <td className="p-4">
                       <button
-                        onClick={() => toggleApplicantBookmark(data._id)}
+                        onClick={() => handleBookmark(data.jobSeekerId)}
                         className="cursor-pointer">
-                        {data.isSaved ? (
+                        {shortlistedIds.has(data.jobSeekerId) ? (
                           <FaBookmark className="text-red-400" />
                         ) : (
                           <FaRegBookmark />
@@ -149,26 +286,34 @@ const Applicants = () => {
                       </button>
                     </td>
                     <td className="p-4">
-                      <Link to="/" className="cursor-pointer">
-                        <Typography variant="small" color="blue-gray" className="font-normal">
-                          {data.name}
-                        </Typography>
-                      </Link>
-                    </td>
-                    <td className="p-4">
-                      <Typography variant="small" color="blue-gray" className="font-normal">
-                        {data.position}
+                      <Typography
+                        variant="small"
+                        color="blue-gray"
+                        className="font-normal"
+                      >
+                        {data.title}
                       </Typography>
                     </td>
                     <td className="p-4">
                       <Typography variant="small" color="blue-gray" className="font-normal">
+                        {`${data.firstName} ${data.lastName}`}
+                      </Typography>
+                    </td>
+                    <td className="p-4">
+                      <Typography variant="small" color="blue-gray" className="font-normal">
+                        {data.email}
+                      </Typography>
+                    </td>
+                    <td className="p-4">
+                      <Typography variant="small" color="blue-gray" className="font-normal">
+                        resume
                       </Typography>
                     </td>
                     <td className="p-4">
                       <select
                         value={data.status}
                         className="p-2 bg-gray-100 rounded-md text-sm"
-                        onChange={(e) => handleStatusChange(e, data._id)}
+                        onChange={(e) => handleStatusChange(data.applicationId, e.target.value)}
                       >
                         <option value="interview">Interview</option>
                         <option value="interviewed">Interviewed</option>
@@ -179,11 +324,13 @@ const Applicants = () => {
                     </td>
                   </tr>
                 )) : (
-                  <td
-                    colSpan={TABLE_HEAD.length}
-                    className="text-center p-10">
-                    No applicants found
-                  </td>
+                  <tr>
+                    <td
+                      colSpan={TABLE_HEAD.length}
+                      className="text-center p-10">
+                      No applicants found
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
@@ -196,8 +343,8 @@ const Applicants = () => {
               Page {currentPage} of {totalPages}
             </Typography>
             <div className="flex gap-2 justify-center">
-              <Button variant="outlined" size="sm" onClick={toPrevPage}>Previous</Button>
-              <Button variant="outlined" size="sm" onClick={toNextPage}>Next</Button>
+              <Button variant="outlined" size="sm" onClick={toPrevPage} disabled={currentPage === 1}>Previous</Button>
+              <Button variant="outlined" size="sm" onClick={toNextPage} disabled={currentPage === totalPages || totalPages === 0}>Next</Button>
             </div>
           </div>
         </CardFooter>

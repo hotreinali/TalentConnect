@@ -3,43 +3,45 @@ import { Link, useNavigate } from 'react-router-dom'
 import { GiHamburgerMenu } from "react-icons/gi"
 import { FaRegUserCircle } from "react-icons/fa"
 import { AuthContext } from '../Contexts/AuthContext'
+import logo from '../assets/logo.png';
 
 const Navbar = () => {
-  const { isLoggedIn,setIsLoggedIn,authUser,setAuthUser } = useContext(AuthContext);
+  const { isLoggedIn, setIsLoggedIn, authUser, setAuthUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
-
-  // navbar links
-  const navbarLinks = [
-    { path: '/about-us', label: 'About' },
-  ]
-
-  // user menu links
-  const jobSeekerLinks = [
-    { path: '/profile', label: 'Profile' },
-    { path: '/job-search', label: 'Search For Jobs' },
-  ]
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   const employerLinks = [
     { path: '/profile', label: 'Profile' },
     { path: '/applicants', label: 'Manage Applicants' },
-  ]
+    { path: '/post-job', label: 'Post Jobs' },
+  ];
 
-  // logout handler
+  const jobSeekerLinks = [
+    { path: '/profile', label: 'Profile' },
+    { path: '/job-search', label: 'Search For Jobs' },
+    { path: '/application-progress', label: 'My Applications' },
+  ];
+
+  const userLinks = authUser?.role === 'Employer'
+    ? employerLinks.slice(1)
+    : jobSeekerLinks.slice(1);
+
   const handleLogout = () => {
     setIsLoggedIn(false);
     setAuthUser(null);
-    // redirect to login
-    navigate('/login')
-  }
+    navigate('/login');
+  };
 
-  const toggleNavMenu = () => setIsNavMenuOpen(prev => !prev)
+  const toggleNavMenu = () => setIsNavMenuOpen(prev => !prev);
+
+  const toggleProfileMenu = () => setIsProfileMenuOpen(prev => !prev);
 
   return (
-    <nav className="px-6 py-4 bg-blue-300">
-      <div className="flex items-center justify-between text-white">
+    <nav className="fixed top-0 left-0 w-full bg-white z-50 px-6 py-4 shadow-md">
+      <div className="flex items-center justify-between text-black">
         <div className="flex items-center gap-4">
-          {/* humbuger icon (small screens only)*/}
+          {/* Hamburger icon for small screens */}
           <button
             className="sm:hidden text-2xl cursor-pointer"
             onClick={toggleNavMenu}
@@ -49,51 +51,49 @@ const Navbar = () => {
 
           {/* Logo */}
           <Link to="/">
-            <h1 className="text-3xl font-bold mr-3">TalentConnect</h1>
+            <img src={logo} alt="Logo" className="h-[50px]" />
           </Link>
 
-          {/* nav links for medium+ screens */}
-          <div className="hidden sm:flex gap-6">
-            {navbarLinks.map(({ path, label }) => (
-              <Link
-                key={path}
-                to={path}
-                className="hover:bg-blue-200 p-2"
-              >
-                {label}
-              </Link>
-            ))}
-          </div>
+          {/* Navigation links for medium+ screens */}
+          {isLoggedIn && (
+            <div className="hidden sm:flex gap-6">
+              {userLinks.map(({ path, label }) => (
+                <Link key={path} to={path} className="hover:bg-blue-200 p-2">
+                  {label}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* if logged in, display menu on hover*/}
-        { isLoggedIn? (
-          <div className="relative group">
-            {/* User avatar with dropdown */}
-            <button className="text-4xl cursor-pointer">
+        {/* Avatar and dropdown menu */}
+        {isLoggedIn ? (
+          <div className="relative">
+            <button className="text-4xl cursor-pointer" onClick={toggleProfileMenu}>
               <FaRegUserCircle />
             </button>
-
-            {/* dropdown menu */}
-            <div className="z-20 absolute right-0 top-9 mt-1 w-48 bg-white shadow-lg rounded-md border invisible group-hover:visible">
-              <div className="p-2 text-black">
-                {(authUser?.role === 'Employer' ? employerLinks:jobSeekerLinks).map(({ path, label }) => (
+            {isProfileMenuOpen && (
+              <div className="z-20 absolute right-0 top-9 mt-1 w-40 bg-white shadow-lg rounded-md border">
+                <div className="p-2 text-black">
                   <Link
-                    key={path}
-                    to={path}
+                    to="/profile"
                     className="block p-2 hover:bg-gray-200 cursor-pointer"
+                    onClick={() => setIsProfileMenuOpen(false)}
                   >
-                    {label}
+                    Profile
                   </Link>
-                ))}
-                <button
-                  onClick={handleLogout}
-                  className="block p-2 hover:bg-gray-200 cursor-pointer w-full text-left"
-                >
-                  Logout
-                </button>
+                  <button
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="block p-2 hover:bg-gray-200 cursor-pointer w-full text-left"
+                  >
+                    Logout
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         ) : (
           <div className="hidden sm:block">
@@ -102,10 +102,10 @@ const Navbar = () => {
         )}
       </div>
 
-      {/* dropdown for small screens */}
-      {isNavMenuOpen && (
-        <div className="sm:hidden mt-4 flex flex-col text-white text-center">
-          {navbarLinks.map(({ path, label }) => (
+      {/* Nav menu for small screens */}
+      {isNavMenuOpen && isLoggedIn && (
+        <div className="sm:hidden mt-4 flex flex-col text-black text-center">
+          {userLinks.map(({ path, label }) => (
             <Link
               key={path}
               to={path}
@@ -115,19 +115,29 @@ const Navbar = () => {
               {label}
             </Link>
           ))}
-          {/* display login button if not logged in */}
-          {!isLoggedIn && (
-            <Link
-              to="/login"
-              className="block p-2 hover:bg-blue-200 cursor-pointer w-full text-center"
-            >
-              Login
-            </Link>
-          )}
+          <button
+            onClick={handleLogout}
+            className="block p-2 hover:bg-blue-200 cursor-pointer w-full"
+          >
+            Logout
+          </button>
+        </div>
+      )}
+
+      {/* Show Login for small screen if not logged in */}
+      {!isLoggedIn && isNavMenuOpen && (
+        <div className="sm:hidden mt-4 flex flex-col text-black text-center">
+          <Link
+            to="/login"
+            className="block p-2 hover:bg-blue-200 cursor-pointer"
+            onClick={() => setIsNavMenuOpen(false)}
+          >
+            Login
+          </Link>
         </div>
       )}
     </nav>
-  )
-}
+  );
+};
 
 export default Navbar;
